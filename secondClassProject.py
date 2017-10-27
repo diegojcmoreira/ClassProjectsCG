@@ -28,7 +28,7 @@ class Coordinate(object):
      #  @return  
     def getCoordinate(self):
         coordinates = [self.x, self.y]
-        return coordinates    
+        return coordinates
 
 ##  Uma Classe para representar um segmento de reta no plano. 
  #  Reprensenta os pontos x e y de inicio, x e y do final do segmento 
@@ -96,7 +96,7 @@ class LineCoordinate(object):
      #  @param PointOfIntersection coodenadas da intersecao das retas, se existir
      #  @return True se os segmento se intersecptam e False caso contrario    
         
-    def intersect(self, Line, PointOfIntersection):
+    def intersect(self, Line, Colinear):
         LineAx = self.XBegin - self.XEnd
         LineAy = self.YEnd - self.YBegin
         LineA = (self.XEnd * self.YBegin) - (self.XBegin * self.YEnd) 
@@ -107,6 +107,7 @@ class LineCoordinate(object):
         R = ((LineAy * LineBCoordinateEnd[0]) + (LineAx * LineBCoordinateEnd[1]) + LineA)
         
         if ((P != 0) and (R != 0) and ((P * R) >= 0)) :
+            print '1'
             return False
   
         LineBx = LineBCoordinateBegin[0] - LineBCoordinateEnd[0]
@@ -117,31 +118,35 @@ class LineCoordinate(object):
         S = ((LineBy * self.XEnd) + (LineBx * self.YEnd) + LineB)
         
         if ((Q != 0) and (S != 0) and ((Q * S) >= 0)) :
+            print '2'
             return False        
 
         Denom = (LineAy * LineBx) - (LineBy * LineAx)
         if Denom == 0:
-            print 'COLLINEAR'
-            return False
+            Colinear = True
+            print '3'
+            return True
+        print '4'    
+        return True    
 
-        if Denom < 0:
-            offset = -Denom / 2
-        else:
-            offset = Denom / 2      
+        # if Denom < 0:
+        #     offset = -Denom / 2
+        # else:
+        #     offset = Denom / 2      
 
-        aux = (LineAx * LineB) - (LineBx * LineA)
-        if aux < 0:
-            PointOfIntersection.x = (aux - offset)/Denom
-        else:
-            PointOfIntersection.x = (aux + offset)/Denom
+        # aux = (LineAx * LineB) - (LineBx * LineA)
+        # if aux < 0:
+        #     PointOfIntersection.x = (aux - offset)/Denom
+        # else:
+        #     PointOfIntersection.x = (aux + offset)/Denom
 
-        aux = (LineBy * LineA) - (LineAy * LineB)
-        if aux < 0:
-            PointOfIntersection.y = (aux - offset)/Denom
-        else:
-            PointOfIntersection.y = (aux + offset)/Denom        
+        # aux = (LineBy * LineA) - (LineAy * LineB)
+        # if aux < 0:
+        #     PointOfIntersection.y = (aux - offset)/Denom
+        # else:
+        #     PointOfIntersection.y = (aux + offset)/Denom        
 
-        return True
+        # return True
 
 class Polygon(object):
     Points = []
@@ -152,8 +157,41 @@ class Polygon(object):
     _redComponent = 0
     _greenComponent = 0
     _blueComponent = 0
+    _xTranslation = 0
+    _yTranslation = 0
 
-    
+    def setTranslation(self, x, y):
+        self._xTranslation = x
+        self._yTranslation = y
+
+    def getXTranslation(self):
+        return self._xTranslation
+
+    def getYTranslation(self):
+        return self._yTranslation    
+
+    def addLine(self, L):
+        self.Lines.append(L)
+
+    def addPoint(self, P):
+        self.Points.append(P)
+
+    def insidePolygon(self, x,y):
+        Colinear = False
+        intersectionCount = 0
+        infinityLine = LineCoordinate(x, y, WINDOW_WIDGTH, y)
+        for line in self.Lines:
+            if line.intersect(infinityLine, Colinear):
+                intersectionCount += 1
+                if Colinear:
+                    return True
+
+        if (intersectionCount%2) == 0: #EVEN
+            return False
+        else:#ODD
+            return True            
+                    
+
 
     def setRedComponent(self, R):
         self._redComponent= R   
@@ -176,12 +214,15 @@ class Polygon(object):
     def setRandomColor(self):
         self.setRedComponent(random.uniform(0, 1))
         self.setGreenComponent(random.uniform(0, 1))
-        self.setBlueComponent(random.uniform(0, 1))
+        self.setBlueComponent(random.uniform(0, 1))    
 
     def __init__(self, xBeg, yBeg):
        self.BeginCoordinate = Coordinate(xBeg, yBeg)
        self.Points = []
        self.Points.append(self.BeginCoordinate)
+       self.Lines = []
+       self._xTranslation = 0
+       self._yTranslation = 0
        self.setRandomColor()    
 
 ##  Um metodo que desenha um ponto na tela nas coordenadas recebidas como parametro
@@ -218,31 +259,41 @@ def displayFun():
     
     #Desenha poligonos ja criados    
     for i in range(0,len(Poligonos)):
-        #glColor3f(Poligonos[i].getRedComponent(), Poligonos[i].getGreenComponent(), Poligonos[i].getBlueComponent()) 
-        glBegin(GL_POLYGON)
-        polygonPoints = Poligonos[i].Points
+        Polygon = Poligonos[i]
+        glColor3f(Polygon.getRedComponent(), Polygon.getGreenComponent(), Polygon.getBlueComponent())
+        glTranslatef(Polygon.getXTranslation(), Polygon.getYTranslation(), 0)
+        gluTessBeginPolygon(tess, 0)
+        gluTessBeginContour(tess)
+        polygonPoints = Polygon.Points
         for j in range(0, len(polygonPoints)):
             pointCoordinate = polygonPoints[j].getCoordinate()
-            print 'Coordenada desenhada : ' + str(pointCoordinate)
-            glVertex2f(pointCoordinate[0], WINDOW_HEIGTH - pointCoordinate[1])
+            pointCoordinate.append(0)
+            gluTessVertex(tess, pointCoordinate, pointCoordinate)
+        gluTessEndContour(tess)
+        gluTessEndPolygon(tess)    
 
-        glEnd()
+    gluTessEndContour(tess)
 
     #Desenha poligonos temporarios    
     for i in range(0,len(poligonosTemporario)):
-        #glColor3f(poligonosTemporario[i].getRedComponent(), poligonosTemporario[i].getGreenComponent(), poligonosTemporario[i].getBlueComponent())
-        glBegin(GL_POLYGON)
+        glColor3f(poligonosTemporario[i].getRedComponent(), poligonosTemporario[i].getGreenComponent(), poligonosTemporario[i].getBlueComponent())
+        gluTessBeginPolygon(tess, 0)
+        gluTessBeginContour(tess)
         polygonPoints = poligonosTemporario.pop().Points
         for j in range(0, len(polygonPoints)):
             pointCoordinate = polygonPoints[j].getCoordinate()
-            #print 'Coordenada desenhada : ' + str(pointCoordinate)
-            glVertex2f(pointCoordinate[0], WINDOW_HEIGTH - pointCoordinate[1])
+            pointCoordinate.append(0)
+            gluTessVertex(tess, pointCoordinate, pointCoordinate)
 
-        glEnd()    
+        gluTessEndContour(tess)
+        gluTessEndPolygon(tess)    
             
     glBegin(GL_LINES)
 
     glColor3f(0.0, 0.0, 0.0)
+
+    
+
     #Desenha reta no processo de criacao de um poligono
     for i in range(0,len(linesTemporario)):
         linhaTemporario = linesTemporario.pop()
@@ -250,6 +301,7 @@ def displayFun():
         coordenadasEndLinesTemporario = linhaTemporario.getCoordinateEnd()
         glVertex2f(coordenadasBeginLinesTemporario[0],WINDOW_HEIGTH - coordenadasBeginLinesTemporario[1])
         glVertex2f(coordenadasEndLinesTemporario[0],WINDOW_HEIGTH - coordenadasEndLinesTemporario[1])
+       
         #drawedLines.append(linhaTemporario)
 
     for i in range(0, len(lines)):        
@@ -267,48 +319,71 @@ def displayFun():
  #  @param y coordenada y do curso do mouse no momento do clique
 def myMouse(b, s, x, y):
     global firstClick
+    global firstClickCoordinates
+    clickInsidePolygon = False
     if b == GLUT_LEFT_BUTTON:
         if s == GLUT_DOWN:
-            if firstClick: #Primeiro clique
-                poligonoAtual = Polygon(x, y)
-                buildingPolygon.append(poligonoAtual)
+            #Test if the click was inside a polygon if the drawing wasnt started
+            if firstClick:
+                for poligono in Poligonos:
+                    if poligono.insidePolygon(x,y):
+                        clickInsidePolygon = True
+                        polygonTranslateBaseCoordination = Coordinate(x,y)
 
-                coordinates = Coordinate(x, y)
-                points.append(coordinates)
-                firstClick = False
-                
-                
-                print 'Ponto Inicial: ' + str(poligonoAtual.Points[0].getCoordinate())
-            else: # nao Primeiro Clique
-                poligonoAtual = buildingPolygon.pop()  
-                
-                if [x, y] == poligonoAtual.BeginCoordinate.getCoordinate():
-                    Poligonos.append(poligonoAtual)
-                    points.pop()
-                    del lines[:]
-                    print 'Ponto Final: ' + str([x,y])
-                    print len(buildingPolygon)
-                    firstClick = True
-                else:
-                    coordinatesBegin = points.pop().getCoordinate()
-                    line = LineCoordinate(coordinatesBegin[0], coordinatesBegin[1], x, y)    
-                    lines.append(line)
-                    poligonoAtual.Points.append(Coordinate(x,y))
+            if not clickInsidePolygon:
+                if firstClick: #Primeiro clique
+                    poligonoAtual = Polygon(x, y)
+                    buildingPolygon.append(poligonoAtual)
+
                     coordinates = Coordinate(x, y)
                     points.append(coordinates)
-                    buildingPolygon.append(poligonoAtual)
-                    for j in range(0, len(Poligonos)):
-                        poligonoCriado = Poligonos[j]
-                        for i in range(0, len(poligonoCriado.Points)):
-                            print 'Pontos: - ' + str(j) + ' - ' +  str(poligonoCriado.Points[i].getCoordinate())
-                    print 'Ponto Intermediario: ' + str([x,y])
+                    firstClick = False
+                    
+                    
+                else: # nao Primeiro Clique
+                    poligonoAtual = buildingPolygon.pop()  
+                    
+                    if [x, y] == poligonoAtual.BeginCoordinate.getCoordinate():
+                        coordinatesBegin = points.pop().getCoordinate()
+                        #poligonoAtual.Points.append(Coordinate(x,y))
+                        poligonoAtual.addLine(LineCoordinate(coordinatesBegin[0], coordinatesBegin[1], x, y))
+                        Poligonos.append(poligonoAtual)
+                        del lines[:]
+                        firstClick = True
+                    else:
+                        coordinatesBegin = points.pop().getCoordinate()
+                        line = LineCoordinate(coordinatesBegin[0], coordinatesBegin[1], x, y)    
+                        lines.append(line)
+                        poligonoAtual.Points.append(Coordinate(x,y))
+                        poligonoAtual.addLine(LineCoordinate(coordinatesBegin[0], coordinatesBegin[1], x, y))
+                        coordinates = Coordinate(x, y)
+                        points.append(coordinates)
+                        buildingPolygon.append(poligonoAtual)
+                        for j in range(0, len(Poligonos)):
+                            poligonoCriado = Poligonos[j]
                 glutPostRedisplay()    
             
-                
+        if s == GLUT_UP:
+            clickInsidePolygon = False        
 
 def mouseMotion(x, y):
+    global polygonTranslateBaseCoordination
+    for i in range((len(Poligonos) - 1), -1, -1):
+        poligono = Poligonos[i]
+        if poligono.insidePolygon(x,y):
+            inicialCoordinates = polygonTranslateBaseCoordination.getCoordinate()
+            yTranslation = inicialCoordinates[1] - y
+            xTranslation = x - inicialCoordinates[0]
+            polygonTranslateBaseCoordination = Coordinate(x, y)
+            print 'Y_TRANSLATION: ' + str(yTranslation)
+            print 'X_TRANSLATION: ' + str(xTranslation)
+            poligono.setTranslation(xTranslation, yTranslation)
+            glutPostRedisplay()
+
+def mousePassiveMotion(x, y):
     if not firstClick:
         #print str([x, y]) + ' e = ' +str([PolAtual.BeginCoordinate.getCoordinate[0], PolAtual.BeginCoordinate.getCoordinate[1]])
+            
         poligonoAtual = buildingPolygon[0] 
         if [x, y] == poligonoAtual.BeginCoordinate.getCoordinate():
             poligonosTemporario.append(poligonoAtual)
@@ -321,8 +396,19 @@ def mouseMotion(x, y):
 
         glutPostRedisplay()
 
+def tessBeginCallback(style):
+    glBegin(style)
+
+def tessEndCallback():
+    glEnd()
+
+def tessVertexCallback(vertex):
+    glVertex2f(vertex[0],WINDOW_HEIGTH - vertex[1])    
+
 
 if __name__ == '__main__':
+    
+    #GLOBAL VARIABLES
     points = []
     lines = []
     buildingPolygon = []
@@ -330,8 +416,16 @@ if __name__ == '__main__':
     firstClick = True
     linesTemporario =[]
     poligonosTemporario = []
+    polygonTranslateBaseCoordination = Coordinate(0,0)
     WINDOW_HEIGTH = 480
     WINDOW_WIDGTH = 640
+    #####################################################
+    
+    tess = gluNewTess()
+    gluTessCallback(tess, GLU_TESS_BEGIN, tessBeginCallback)
+    gluTessCallback(tess, GLU_TESS_VERTEX, tessVertexCallback)
+    gluTessCallback(tess, GLU_TESS_END, tessEndCallback)
+
     glutInit()
     glutInitWindowSize(WINDOW_WIDGTH,WINDOW_HEIGTH)
     glutInitWindowPosition(0, 0)
@@ -339,7 +433,9 @@ if __name__ == '__main__':
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB)
     glutDisplayFunc(displayFun)
     glutMouseFunc(myMouse)
-    glutPassiveMotionFunc(mouseMotion)
+    glutMotionFunc(mouseMotion)
+    glutPassiveMotionFunc(mousePassiveMotion)
 
     initFun()
     glutMainLoop()
+    gluDeleteTess(tess)
